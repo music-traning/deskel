@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>デスケル v9 (DB Link)</title>
+  <title>デスケル (Free Beta)</title>
 
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon.png">
@@ -130,7 +130,7 @@
       border-color: white;
     }
 
-    /* ロック状態のスタイル */
+    /* ロック状態（今回は使いませんが残しておきます） */
     button.size-btn.locked {
       color: #aaa;
     }
@@ -152,7 +152,7 @@
       background-color: #eee;
     }
 
-    /* ログインボタン */
+    /* ログインボタン（機能は残しますが、必須ではありません） */
     #user-status {
       position: absolute;
       top: 15px;
@@ -211,20 +211,6 @@
       max-width: 80%;
     }
 
-    /* 課金デモボタン */
-    .btn-purchase-demo {
-      background: linear-gradient(90deg, #FFD700, #FFA500);
-      color: black;
-      width: 100%;
-      padding: 12px;
-      border-radius: 20px;
-      font-weight: bold;
-      border: none;
-      margin-top: 15px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
     #preview-img {
       max-width: 100%;
       max-height: 50vh;
@@ -263,7 +249,7 @@
 
   <div id="user-status">
     <button id="btn-login" onclick="signIn()">G ログイン</button>
-    <img id="user-icon" src="" alt="user" onclick="alert('ログイン中')">
+    <img id="user-icon" src="" alt="user">
   </div>
 
   <div class="video-container">
@@ -287,14 +273,9 @@
   <div id="modal">
     <div class="modal-box">
       <h3>💎 有料機能</h3>
-      <p>このサイズを使用するには<br>Proプランへの登録が必要です。</p>
-
-      <button class="btn-purchase-demo" onclick="simulatePurchase()">
-        【デモ】¥300で解除する<br><span style="font-size:10px; font-weight:normal;">(データベースを書き換えます)</span>
-      </button>
-
+      <p>現在準備中です。</p>
       <div style="margin-top:15px;">
-        <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+        <button class="btn-cancel" onclick="closeModal()">閉じる</button>
       </div>
     </div>
   </div>
@@ -314,7 +295,6 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    // Firestoreの機能を追加
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -328,85 +308,39 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getFirestore(app); // データベース準備
+    const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
 
-    // ユーザーの課金状態（初期値はFalse）
     let isUserPremium = false;
-    let currentUser = null;
 
-    // === 1. ログイン処理 ===
+    // 1. ログイン処理
     window.signIn = () => {
       signInWithPopup(auth, provider).catch(e => alert(e.message));
     };
 
-    // === 2. 状態監視 & データベース連動 ===
+    // 2. 状態監視
     onAuthStateChanged(auth, (user) => {
       const loginBtn = document.getElementById('btn-login');
       const userIcon = document.getElementById('user-icon');
 
       if (user) {
-        // ログイン時
-        currentUser = user;
         loginBtn.style.display = 'none';
         userIcon.style.display = 'block';
         userIcon.src = user.photoURL;
-
-        // ★ここでデータベースをリアルタイム監視する！
-        // "users" という引き出しの、"ユーザーID" の書類を見張る
-        onSnapshot(doc(db, "users", user.uid), (docSnap) => {
-          if (docSnap.exists() && docSnap.data().isPremium) {
-            // 課金フラグが立っていたら
-            isUserPremium = true;
-            console.log("ユーザーはプレミアム会員です");
-          } else {
-            isUserPremium = false;
-            console.log("ユーザーは無料会員です");
-          }
-          // UIを更新（鍵マークを消したり付けたり）
-          renderButtons();
-        });
-
       } else {
-        // 未ログイン時
-        currentUser = null;
-        isUserPremium = false;
         loginBtn.style.display = 'flex';
         userIcon.style.display = 'none';
-        renderButtons();
       }
+      // ログイン状態に関わらずボタンを描画
+      renderButtons();
     });
 
-    // === 3. 課金シミュレーション ===
-    window.simulatePurchase = async () => {
-      if (!currentUser) {
-        alert("先にログインしてください");
-        closeModal();
-        return;
-      }
-
-      // データベースに「isPremium: true」を書き込む
-      try {
-        await setDoc(doc(db, "users", currentUser.uid), {
-          isPremium: true,
-          email: currentUser.email,
-          updatedAt: new Date()
-        }, { merge: true });
-
-        alert("購入処理が完了しました！\n（データベースが更新されました）");
-        closeModal();
-      } catch (e) {
-        alert("エラー: " + e.message);
-      }
-    };
-
-
-    // === 以下、アプリ本体機能 ===
+    // === アプリ設定：すべて無料(False)に設定 ===
     const RATIO_DATA = [
       { id: 'standard', label: 'A4/B4 (210×297)', ratio: 297 / 210, isPremium: false },
-      { id: 'mokutan', label: '木炭紙 (500×650)', ratio: 650 / 500, isPremium: true },
-      { id: 'f-size', label: 'Fサイズ (F6等)', ratio: 410 / 318, isPremium: true },
-      { id: 'square', label: '正方形', ratio: 1.00, isPremium: true }
+      { id: 'mokutan', label: '木炭紙 (500×650)', ratio: 650 / 500, isPremium: false }, // 無料化
+      { id: 'f-size', label: 'Fサイズ (F6等)', ratio: 410 / 318, isPremium: false }, // 無料化
+      { id: 'square', label: '正方形', ratio: 1.00, isPremium: false }  // 無料化
     ];
 
     let currentRatio = 297 / 210;
@@ -416,7 +350,6 @@
     const frame = document.getElementById('guide-frame');
     const slider = document.getElementById('zoom-slider');
     const btnContainer = document.getElementById('btn-container');
-    const modal = document.getElementById('modal');
     const saveModal = document.getElementById('save-modal');
     const previewImg = document.getElementById('preview-img');
     const downloadLink = document.getElementById('download-link');
@@ -455,34 +388,23 @@
       video.style.transform = `scale(${currentZoom})`;
     });
 
-    // ボタン描画関数（状態によって書き換えるため関数化）
     function renderButtons() {
-      btnContainer.innerHTML = ''; // 一旦クリア
+      btnContainer.innerHTML = '';
 
       RATIO_DATA.forEach((item, i) => {
         const btn = document.createElement('button');
         btn.className = 'size-btn';
 
-        // ★ここがポイント：ユーザーがプレミアムなら「鍵」を表示しない
-        // item.isPremium が true でも、isUserPremium が true ならロック解除
-        const isLocked = item.isPremium && !isUserPremium;
+        // 全開放中なのでロック判定は常にfalse
+        const isLocked = false;
 
-        btn.innerHTML = item.label + (isLocked ? ' 🔒' : '');
-        if (isLocked) btn.classList.add('locked');
+        btn.innerHTML = item.label; // 鍵マークも出しません
 
-        // 現在選択中の比率ならアクティブ
-        // (簡略化のため、ratioで判定)
         if (Math.abs(item.ratio - currentRatio) < 0.01) {
           btn.classList.add('active');
         }
 
         btn.onclick = () => {
-          if (isLocked) {
-            // ロック中ならモーダルを開く
-            document.getElementById('modal').style.display = 'flex';
-            return;
-          }
-          // 解除済みor無料なら切り替え
           document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           updateShape(item.ratio);
@@ -492,7 +414,6 @@
       });
     }
 
-    // モーダル操作をグローバルに
     window.closeModal = () => { document.getElementById('modal').style.display = 'none'; };
     window.closeSaveModal = () => { saveModal.style.display = 'none'; };
 
@@ -537,8 +458,8 @@
     };
 
     startCamera();
-    updateShape(297 / 210); // 初期サイズ
-    renderButtons(); // ボタン初期描画
+    updateShape(297 / 210);
+    renderButtons();
     window.addEventListener('resize', () => updateShape(currentRatio));
   </script>
 </body>
